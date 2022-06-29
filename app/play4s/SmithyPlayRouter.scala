@@ -25,22 +25,17 @@ class SmithyPlayRouter[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[
 
     new PartialFunction[RequestHeader, Handler] {
       override def isDefinedAt(x: RequestHeader): Boolean = {
-        println("[SmithyPlayRouter] isDefinedAt" + x)
+        println("[SmithyPlayRouter] isDefinedAt" + x.path)
         println(endpoints)
         endpoints.exists(ep => {
-          println(HttpEndpoint.cast(ep).get)
-          println(
-            x.path
-              .replaceFirst("/", "")
-              .split("/")
-              .mkString("Array(", ", ", ")")
-          )
           val res = HttpEndpoint
             .cast(ep)
             .get
             .matches(x.path.replaceFirst("/", "").split("/"))
           println(res)
-          res.isDefined
+          res.isDefined && x.method.equals(HttpEndpoint
+            .cast(ep)
+            .get.method.showUppercase)
         })
       }
 

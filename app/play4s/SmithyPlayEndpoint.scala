@@ -1,24 +1,9 @@
 package play4s
 
 import cats.data.EitherT
-import play.api.mvc.{
-  AbstractController,
-  Action,
-  AnyContent,
-  ControllerComponents,
-  Handler,
-  Request,
-  RequestHeader,
-  Result
-}
+import play.api.mvc.{AbstractController, Action, AnyContent, BodyParser, ControllerComponents, Handler, Request, RequestHeader, Result}
 import smithy4s.{Endpoint, Interpreter}
-import smithy4s.http.{
-  BodyPartial,
-  HttpEndpoint,
-  Metadata,
-  PathParams,
-  matchPath
-}
+import smithy4s.http.{BodyPartial, HttpEndpoint, Metadata, PathParams, matchPath}
 import smithy4s.schema.Schema
 import play.api.routing.Router.Routes
 import cats.implicits._
@@ -59,6 +44,7 @@ class SmithyPlayEndpoint[F[_] <: MyMonad[_], Op[
               )
             )
             metadata = getMetadata(pathParams, v1)
+            _ = println(request.body)
             input <- EitherT(
               Future(
                 inputMetadataDecoder
@@ -66,6 +52,7 @@ class SmithyPlayEndpoint[F[_] <: MyMonad[_], Op[
                   .leftMap(_ => BadRequest("Invalid Input Data"))
               )
             )
+            //res <- (impl(endpoint.wrap(request.body.asJson.map(j => j.as[I])): F[O]).leftMap(_ =>
             res <- (impl(endpoint.wrap(input)): F[O]).leftMap(_ =>
               BadRequest("Invalid Input Data")
             )
