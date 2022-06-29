@@ -19,7 +19,7 @@ class HomeController @Inject(
     extends AbstractController(cc)
     with HomeControllerService[MyMonad] {
 
-  val format = Json.format[Hi]
+  implicit val format = Json.format[Hi]
 
   /*def index(): Action[AnyContent] = Action[AnyContent] {
     Ok(Json.toJson(Hi(Some("")))).body
@@ -33,7 +33,6 @@ class HomeController @Inject(
 
   override def index2(): MyMonad[Hi] = MyEndpoint().out(Hi(Some("ASD2")))
 
-  def index3(): MyMonad[Hi] = Hi(Some("ASDDD"))
 
 }
 

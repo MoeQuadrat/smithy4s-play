@@ -16,9 +16,10 @@ object MyMonads {
 
   //type MyMonad[O] = EitherT[Future, MyErrorType, O]
   type MyMonad[O] = EitherT[Future, MyErrorType, (O, Format[O])]
-  case class MyEndpoint[O]()(implicit  ec: ExecutionContext) {
-    def out[O](value: O): MyMonad[O] = EitherT.right[MyErrorType] {
-      Future(value)
+
+  case class MyEndpoint[O]()(implicit  ec: ExecutionContext, format: Format[O]) {
+    def out(value: O): MyMonad[O] = EitherT.right[MyErrorType] {
+      Future((value, format))
     }
   }
 
