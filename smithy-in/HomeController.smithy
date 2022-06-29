@@ -7,7 +7,7 @@ use smithy4s.api#simpleRestJson
 service HomeControllerService {
     version: "0.0.1",
     errors: [GeneralServerError],
-    operations: [Index, Index1, Index2]
+    operations: [Index, Index1, Index2, IndexPost]
 }
 
 @readonly
@@ -29,7 +29,28 @@ operation Index2 {
     output: Hi
 }
 
+@readonly
+@http(method: "POST", uri: "/index/{test}")
+operation IndexPost {
+    input: ByeRequest,
+    output: Hi
+}
+
 structure Hi {
+    message: String
+}
+
+structure ByeRequest {
+    @httpLabel
+    @required
+    test: String,
+    @httpPayload
+    @required
+    bye: Bye
+}
+
+structure Bye {
+    @required
     message: String
 }
 

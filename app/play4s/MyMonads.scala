@@ -21,6 +21,7 @@ object MyMonads {
     def out(value: O): MyMonad[O] = EitherT.right[MyErrorType] {
       Future((value, format))
     }
+    def anderesachern = ???
   }
 
 }

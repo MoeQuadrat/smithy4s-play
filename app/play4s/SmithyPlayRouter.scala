@@ -3,14 +3,17 @@ import play.api.mvc.{ControllerComponents, Handler, RequestHeader}
 import play.api.routing.Router.Routes
 import play4s.MyMonads.MyMonad
 import smithy4s.http.HttpEndpoint
-import smithy4s.{GenLift, Monadic}
+import smithy4s.{GenLift, HintMask, Monadic}
+import smithy4s.http.CodecAPI
+import smithy4s.internals.InputOutput
 
 import scala.concurrent.ExecutionContext
 
 class SmithyPlayRouter[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[
     _
 ] <: MyMonad[_]](
-    impl: Monadic[Alg, F]
+    impl: Monadic[Alg, F],
+
 )(implicit cc: ControllerComponents, ec: ExecutionContext) {
 
   def routes()(implicit
@@ -25,22 +28,16 @@ class SmithyPlayRouter[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[
 
     new PartialFunction[RequestHeader, Handler] {
       override def isDefinedAt(x: RequestHeader): Boolean = {
-        println("[SmithyPlayRouter] isDefinedAt" + x)
+        println("[SmithyPlayRouter] isDefinedAt" + x.path)
         println(endpoints)
         endpoints.exists(ep => {
-          println(HttpEndpoint.cast(ep).get)
-          println(
-            x.path
-              .replaceFirst("/", "")
-              .split("/")
-              .mkString("Array(", ", ", ")")
-          )
           val res = HttpEndpoint
             .cast(ep)
             .get
             .matches(x.path.replaceFirst("/", "").split("/"))
-          println(res)
-          res.isDefined
+          res.isDefined && x.method.equals(HttpEndpoint
+            .cast(ep)
+            .get.method.showUppercase)
         })
       }
 
@@ -53,12 +50,16 @@ class SmithyPlayRouter[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[
               .cast(ep)
               .get
               .matches(v1.path.replaceFirst("/", "").split("/"))
-              .isDefined
+              .isDefined && HttpEndpoint
+              .cast(ep).get.method.showUppercase.equals(v1.method)
           )
           .head
         new SmithyPlayEndpoint(
           interpreter,
-          ep
+          ep,
+          smithy4s.http.json.codecs(
+            smithy4s.api.SimpleRestJson.protocol.hintMask ++ HintMask(InputOutput)
+          )
         ).handler(v1)
       }
 
