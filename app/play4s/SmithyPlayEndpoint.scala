@@ -1,5 +1,6 @@
 package play4s
 
+import akka.util.ByteString
 import cats.data.EitherT
 import play.api.mvc.{AbstractController, Action, AnyContent, BodyParser, ControllerComponents, Handler, Request, RequestHeader, Result}
 import smithy4s.{Endpoint, Interpreter}
@@ -7,7 +8,8 @@ import smithy4s.http.{BodyPartial, HttpEndpoint, Metadata, PathParams, matchPath
 import smithy4s.schema.Schema
 import play.api.routing.Router.Routes
 import cats.implicits._
-import play.api.libs.json.{Format, JsValue, Json, Writes}
+import play.api.libs.json.{Format, JsError, JsValue, Json, Reads, Writes}
+import play.api.libs.streams.{Accumulator, AkkaStreams}
 import play4s.MyMonads.MyMonad
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -28,13 +30,17 @@ class SmithyPlayEndpoint[F[_] <: MyMonad[_], Op[
   val inputMetadataDecoder =
     Metadata.PartialDecoder.fromSchema(inputSchema).total.get
 
+
+
+
   def handler(v1: RequestHeader): Handler = {
     println("Endpoint")
     println(endpoint.name)
     HttpEndpoint
       .cast(endpoint)
       .map(httpEp => {
-        Action.async { implicit request =>
+        Action.async {implicit request =>
+        //        Action.async(parse.json) { implicit request: Request[I] =>
           val result = for {
             pathParams <- EitherT(
               Future(
@@ -52,7 +58,7 @@ class SmithyPlayEndpoint[F[_] <: MyMonad[_], Op[
                   .leftMap(_ => BadRequest("Invalid Input Data"))
               )
             )
-            //res <- (impl(endpoint.wrap(request.body.asJson.map(j => j.as[I])): F[O]).leftMap(_ =>
+            //res <- (impl(endpoint.wrap(request.body)): F[O]).leftMap(_ =>
             res <- (impl(endpoint.wrap(input)): F[O]).leftMap(_ =>
               BadRequest("Invalid Input Data")
             )

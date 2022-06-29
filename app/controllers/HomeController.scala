@@ -33,6 +33,7 @@ class HomeController @Inject(
 
   override def index2(): MyMonad[Hi] = MyEndpoint().out(Hi(Some("ASD2")))
 
+  override def indexPost(message: Option[String]): MyMonad[Hi] = endpoint.out(Hi(message))
 
 }
 

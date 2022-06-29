@@ -48,7 +48,8 @@ class SmithyPlayRouter[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[
               .cast(ep)
               .get
               .matches(v1.path.replaceFirst("/", "").split("/"))
-              .isDefined
+              .isDefined && HttpEndpoint
+              .cast(ep).get.method.showUppercase.equals(v1.method)
           )
           .head
         new SmithyPlayEndpoint(
