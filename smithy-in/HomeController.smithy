@@ -30,9 +30,9 @@ operation Index2 {
 }
 
 @readonly
-@http(method: "POST", uri: "/index")
+@http(method: "POST", uri: "/index/{test}")
 operation IndexPost {
-    input: Bye,
+    input: ByeRequest,
     output: Hi
 }
 
@@ -40,7 +40,17 @@ structure Hi {
     message: String
 }
 
+structure ByeRequest {
+    @httpLabel
+    @required
+    test: String,
+    @httpPayload
+    @required
+    bye: Bye
+}
+
 structure Bye {
+    @required
     message: String
 }
 

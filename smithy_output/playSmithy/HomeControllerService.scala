@@ -12,14 +12,14 @@ trait HomeControllerServiceGen[F[_, _, _, _, _]] {
   def index() : F[Unit, IndexError, Hi, Nothing, Nothing]
   def index1() : F[Unit, Index1Error, Hi, Nothing, Nothing]
   def index2() : F[Unit, Index2Error, Hi, Nothing, Nothing]
-  def indexPost(message: Option[String] = None) : F[Bye, IndexPostError, Hi, Nothing, Nothing]
+  def indexPost(test: String, bye: Bye) : F[ByeRequest, IndexPostError, Hi, Nothing, Nothing]
 
   def transform[G[_, _, _, _, _]](transformation : smithy4s.Transformation[F, G]) : HomeControllerServiceGen[G] = new Transformed(transformation)
   class Transformed[G[_, _, _, _, _]](transformation : smithy4s.Transformation[F, G]) extends HomeControllerServiceGen[G] {
     def index() = transformation[Unit, IndexError, Hi, Nothing, Nothing](self.index())
     def index1() = transformation[Unit, Index1Error, Hi, Nothing, Nothing](self.index1())
     def index2() = transformation[Unit, Index2Error, Hi, Nothing, Nothing](self.index2())
-    def indexPost(message: Option[String] = None) = transformation[Bye, IndexPostError, Hi, Nothing, Nothing](self.indexPost(message))
+    def indexPost(test: String, bye: Bye) = transformation[ByeRequest, IndexPostError, Hi, Nothing, Nothing](self.indexPost(test, bye))
   }
 }
 
@@ -53,7 +53,7 @@ object HomeControllerServiceGen extends smithy4s.Service[HomeControllerServiceGe
     def index() = Index()
     def index1() = Index1()
     def index2() = Index2()
-    def indexPost(message: Option[String] = None) = IndexPost(Bye(message))
+    def indexPost(test: String, bye: Bye) = IndexPost(ByeRequest(test, bye))
   }
 
   def transform[P[_, _, _, _, _]](transformation: smithy4s.Transformation[HomeControllerServiceOperation, P]): HomeControllerServiceGen[P] = reified.transform(transformation)
@@ -65,7 +65,7 @@ object HomeControllerServiceGen extends smithy4s.Service[HomeControllerServiceGe
       case Index() => impl.index()
       case Index1() => impl.index1()
       case Index2() => impl.index2()
-      case IndexPost(Bye(message)) => impl.indexPost(message)
+      case IndexPost(ByeRequest(test, bye)) => impl.indexPost(test, bye)
     }
   }
   case class Index() extends HomeControllerServiceOperation[Unit, IndexError, Hi, Nothing, Nothing]
@@ -194,18 +194,18 @@ object HomeControllerServiceGen extends smithy4s.Service[HomeControllerServiceGe
       case c : GeneralServerErrorCase => GeneralServerErrorCase.alt(c)
     }
   }
-  case class IndexPost(input: Bye) extends HomeControllerServiceOperation[Bye, IndexPostError, Hi, Nothing, Nothing]
-  object IndexPost extends smithy4s.Endpoint[HomeControllerServiceOperation, Bye, IndexPostError, Hi, Nothing, Nothing] with smithy4s.Errorable[IndexPostError] {
+  case class IndexPost(input: ByeRequest) extends HomeControllerServiceOperation[ByeRequest, IndexPostError, Hi, Nothing, Nothing]
+  object IndexPost extends smithy4s.Endpoint[HomeControllerServiceOperation, ByeRequest, IndexPostError, Hi, Nothing, Nothing] with smithy4s.Errorable[IndexPostError] {
     val id: smithy4s.ShapeId = smithy4s.ShapeId("playSmithy", "IndexPost")
-    val input: smithy4s.Schema[Bye] = Bye.schema.addHints(smithy4s.internals.InputOutput.Input)
+    val input: smithy4s.Schema[ByeRequest] = ByeRequest.schema.addHints(smithy4s.internals.InputOutput.Input)
     val output: smithy4s.Schema[Hi] = Hi.schema.addHints(smithy4s.internals.InputOutput.Output)
     val streamedInput : smithy4s.StreamingSchema[Nothing] = smithy4s.StreamingSchema.nothing
     val streamedOutput : smithy4s.StreamingSchema[Nothing] = smithy4s.StreamingSchema.nothing
     val hints : smithy4s.Hints = smithy4s.Hints(
-      smithy.api.Http(smithy.api.NonEmptyString("POST"), smithy.api.NonEmptyString("/index"), None),
+      smithy.api.Http(smithy.api.NonEmptyString("POST"), smithy.api.NonEmptyString("/index/{test}"), None),
       smithy.api.Readonly(),
     )
-    def wrap(input: Bye) = IndexPost(input)
+    def wrap(input: ByeRequest) = IndexPost(input)
     override val errorable: Option[smithy4s.Errorable[IndexPostError]] = Some(this)
     val error: smithy4s.UnionSchema[IndexPostError] = IndexPostError.schema
     def liftError(throwable: Throwable) : Option[IndexPostError] = throwable match {
