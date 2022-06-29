@@ -17,10 +17,10 @@ class ApiRouter @Inject() (customRouter: CustomRouter) extends SimpleRouter {
 }
 
 @Singleton
-class CustomRouter @Inject() (homeController: HomeController)(implicit
+class CustomRouter @Inject() (homeController: HomeController, pizzaController: PizzaController)(implicit
     cc: ControllerComponents,
     ec: ExecutionContext
 ) {
-  val routes = new SmithyPlayRouter(homeController).routes()
+  val routes = new SmithyPlayRouter(pizzaController).routes()
 
 }

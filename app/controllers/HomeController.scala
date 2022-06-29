@@ -27,12 +27,12 @@ class HomeController @Inject(
 
   val endpoint = MyEndpoint()
 
-  override def index(): MyMonad[Hi] = MyEndpoint().out(Hi(Some("ASD")))
+  override def index(): MyMonad[Hi] = MyEndpoint().outF(Hi(Some("ASD")))
 
-  override def index1(): MyMonad[Hi] = MyEndpoint().out(Hi(Some("ASD1")))
+  override def index1(): MyMonad[Hi] = MyEndpoint().outF(Hi(Some("ASD1")))
 
-  override def index2(): MyMonad[Hi] = MyEndpoint().out(Hi(Some("ASD2")))
+  override def index2(): MyMonad[Hi] = MyEndpoint().outF(Hi(Some("ASD2")))
 
-  override def indexPost(test: String, bye: Bye): MyMonad[Hi] = MyEndpoint().out(Hi(Some(bye.toString + " " + test)))
+  override def indexPost(test: String, bye: Bye): MyMonad[Hi] = MyEndpoint().outF(Hi(Some(bye.toString + " " + test)))
 }
 

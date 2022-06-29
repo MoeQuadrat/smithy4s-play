@@ -1,34 +1,19 @@
 package play4s
 
-import akka.util.ByteString
 import cats.data.EitherT
 import play.api.mvc.{
   AbstractController,
-  Action,
-  AnyContent,
-  BodyParser,
   ControllerComponents,
   Handler,
-  Request,
   RequestHeader,
   Result
 }
-import smithy4s.{Endpoint, HintMask, Interpreter}
-import smithy4s.http.{
-  BodyPartial,
-  CodecAPI,
-  HttpEndpoint,
-  Metadata,
-  PathParams,
-  matchPath
-}
+import smithy4s.{Endpoint, Interpreter}
+import smithy4s.http.{CodecAPI, HttpEndpoint, Metadata, PathParams}
 import smithy4s.schema.Schema
-import play.api.routing.Router.Routes
 import cats.implicits._
-import play.api.libs.json.{Format, JsError, JsValue, Json, Reads, Writes}
-import play.api.libs.streams.{Accumulator, AkkaStreams}
+import play.api.libs.json.Json
 import play4s.MyMonads.MyMonad
-import smithy4s.internals.InputOutput
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -46,12 +31,11 @@ class SmithyPlayEndpoint[F[_] <: MyMonad[_], Op[
     extends AbstractController(cc) {
 
   val inputSchema: Schema[I] = endpoint.input
+
   val inputMetadataDecoder =
     Metadata.PartialDecoder.fromSchema(inputSchema)
 
   def handler(v1: RequestHeader): Handler = {
-    println("Endpoint")
-    println(endpoint.name)
     HttpEndpoint
       .cast(endpoint)
       .map(httpEp => {
@@ -84,7 +68,7 @@ class SmithyPlayEndpoint[F[_] <: MyMonad[_], Op[
                       })
                   } yield metadataPartial.combine(c)
               })
-            ).leftMap(_ => BadRequest("Invalid Input Data"))
+            ).leftMap(e => BadRequest("Invalid Input Data"))
 
             //res <- (impl(endpoint.wrap(request.body)): F[O]).leftMap(_ =>
             res <- (impl(endpoint.wrap(input)): F[O]).leftMap(_ =>
@@ -99,6 +83,15 @@ class SmithyPlayEndpoint[F[_] <: MyMonad[_], Op[
       })
       .getOrElse(Action { NotFound("404") })
   }
+
+  /*private def successResponse(output: O): MyMonad[O] = {
+    val outputMetadata = outputMetadataEncoder.encode(output)
+    val outputHeaders = toHeaders(outputMetadata.headers)
+    val successCode = status(httpEndpoint.code)
+    putHeaders(Response[F](successCode), outputHeaders)
+      .withEntity(output)
+      .pure[F]
+  }*/
 
   private def getMetadata(pathParams: PathParams, request: RequestHeader) =
     Metadata(

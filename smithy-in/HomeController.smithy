@@ -29,12 +29,13 @@ operation Index2 {
     output: Hi
 }
 
-@readonly
 @http(method: "POST", uri: "/index/{test}")
 operation IndexPost {
     input: ByeRequest,
     output: Hi
 }
+
+
 
 structure Hi {
     message: String

@@ -203,7 +203,6 @@ object HomeControllerServiceGen extends smithy4s.Service[HomeControllerServiceGe
     val streamedOutput : smithy4s.StreamingSchema[Nothing] = smithy4s.StreamingSchema.nothing
     val hints : smithy4s.Hints = smithy4s.Hints(
       smithy.api.Http(smithy.api.NonEmptyString("POST"), smithy.api.NonEmptyString("/index/{test}"), None),
-      smithy.api.Readonly(),
     )
     def wrap(input: ByeRequest) = IndexPost(input)
     override val errorable: Option[smithy4s.Errorable[IndexPostError]] = Some(this)
