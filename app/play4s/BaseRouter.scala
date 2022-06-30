@@ -8,19 +8,21 @@ import smithy4s.Monadic
 
 import scala.concurrent.ExecutionContext
 
-
-abstract class BaseRouter(implicit controllerComponents: ControllerComponents, executionContext: ExecutionContext) extends SimpleRouter {
+abstract class BaseRouter(implicit
+    controllerComponents: ControllerComponents,
+    executionContext: ExecutionContext
+) extends SimpleRouter {
   implicit def transformToRouter[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[
-    _
+      _
   ] <: MyMonad[_]](
-                    impl: Monadic[Alg, F]
-                  )(implicit serviceProvider: smithy4s.Service.Provider[Alg, Op]) = {
+      impl: Monadic[Alg, F]
+  )(implicit serviceProvider: smithy4s.Service.Provider[Alg, Op]) = {
     new SmithyPlayRouter[Alg, Op, F](impl).routes()
   }
 
   def chain(
-             toChain: Seq[Routes]
-           ) = {
+      toChain: Seq[Routes]
+  ) = {
     println(toChain)
     toChain.foldLeft(PartialFunction.empty[RequestHeader, Handler])((a, b) =>
       a orElse b
