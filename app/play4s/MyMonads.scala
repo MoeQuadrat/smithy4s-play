@@ -13,8 +13,6 @@ trait MyErrorType
 
 object MyMonads {
 
-
-  //type MyMonad[O] = EitherT[Future, MyErrorType, O]
   type MyMonad[O] = EitherT[Future, MyErrorType, (O, Format[O])]
 
   case class MyEndpoint()(implicit  ec: ExecutionContext) {
