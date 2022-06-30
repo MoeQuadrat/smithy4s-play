@@ -84,14 +84,6 @@ class SmithyPlayEndpoint[F[_] <: MyMonad[_], Op[
       .getOrElse(Action { NotFound("404") })
   }
 
-  /*private def successResponse(output: O): MyMonad[O] = {
-    val outputMetadata = outputMetadataEncoder.encode(output)
-    val outputHeaders = toHeaders(outputMetadata.headers)
-    val successCode = status(httpEndpoint.code)
-    putHeaders(Response[F](successCode), outputHeaders)
-      .withEntity(output)
-      .pure[F]
-  }*/
 
   private def getMetadata(pathParams: PathParams, request: RequestHeader) =
     Metadata(

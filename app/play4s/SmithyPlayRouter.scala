@@ -13,7 +13,6 @@ class SmithyPlayRouter[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[
     _
 ] <: MyMonad[_]](
     impl: Monadic[Alg, F],
-
 )(implicit cc: ControllerComponents, ec: ExecutionContext) {
 
   def routes()(implicit
@@ -35,9 +34,13 @@ class SmithyPlayRouter[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[
             .cast(ep)
             .get
             .matches(x.path.replaceFirst("/", "").split("/"))
-          res.isDefined && x.method.equals(HttpEndpoint
-            .cast(ep)
-            .get.method.showUppercase)
+          res.isDefined && x.method.equals(
+            HttpEndpoint
+              .cast(ep)
+              .get
+              .method
+              .showUppercase
+          )
         })
       }
 
@@ -51,14 +54,20 @@ class SmithyPlayRouter[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[
               .get
               .matches(v1.path.replaceFirst("/", "").split("/"))
               .isDefined && HttpEndpoint
-              .cast(ep).get.method.showUppercase.equals(v1.method)
+              .cast(ep)
+              .get
+              .method
+              .showUppercase
+              .equals(v1.method)
           )
           .head
         new SmithyPlayEndpoint(
           interpreter,
           ep,
           smithy4s.http.json.codecs(
-            smithy4s.api.SimpleRestJson.protocol.hintMask ++ HintMask(InputOutput)
+            smithy4s.api.SimpleRestJson.protocol.hintMask ++ HintMask(
+              InputOutput
+            )
           )
         ).handler(v1)
       }
