@@ -1,21 +1,21 @@
 package controllers
 
+import cats.data.{EitherT, Validated}
 import play.api.libs.json.Json
 import play.api.mvc.{AbstractController, ControllerComponents}
-import play4s.MyMonads.{MyEndpoint, MyMonad}
+import play4s.MyMonads.{NotFound, ErrorResult, MyEndpoint, MyMonad}
 import playSmithy._
 import smithy4s.Timestamp
 
 import java.time.LocalDateTime
 import java.util.UUID
 import javax.inject.{Inject, Singleton}
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class PizzaController @Inject(
 ) (implicit cc: ControllerComponents, ec: ExecutionContext)
-    extends AbstractController(cc)
-    with PizzaAdminService[MyMonad] {
+    extends PizzaAdminService[MyMonad] {
 
   val endpoint = MyEndpoint()
 
@@ -45,11 +45,8 @@ class PizzaController @Inject(
   }
 
   override def getMenu(id: String): MyMonad[GetMenuResult] =
-    endpoint.outF(
-      {
-        println(pizzaList)
-        println(id)
-        GetMenuResult(pizzaList.filter(m => m.id.get == id).head)
-      }
-    )
+    for {
+      _ <- EitherT(Future(Validated.cond(pizzaList.exists(p => p.id.get == id), (), NotFound("Not Found")).toEither))
+      res <- EitherT.right[ErrorResult](Future( pizzaList.find(p => p.id.get == id).get))
+    } yield (GetMenuResult(res), formatMenuResult)
 }

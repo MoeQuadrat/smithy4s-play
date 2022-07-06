@@ -1,13 +1,7 @@
 package play4s
 
 import cats.data.EitherT
-import play.api.mvc.{
-  AbstractController,
-  ControllerComponents,
-  Handler,
-  RequestHeader,
-  Result
-}
+import play.api.mvc.{AbstractController, AnyContent, ControllerComponents, Handler, Request, RequestHeader, Result, Results}
 import smithy4s.{Endpoint, Interpreter}
 import smithy4s.http.{CodecAPI, HttpEndpoint, Metadata, PathParams}
 import smithy4s.schema.Schema
@@ -35,54 +29,54 @@ class SmithyPlayEndpoint[F[_] <: MyMonad[_], Op[
   val inputMetadataDecoder =
     Metadata.PartialDecoder.fromSchema(inputSchema)
 
+  val httpEp = HttpEndpoint.cast(endpoint)
+
   def handler(v1: RequestHeader): Handler = {
     HttpEndpoint
       .cast(endpoint)
       .map(httpEp => {
         Action.async { implicit request =>
           val result = for {
-            pathParams <- EitherT(
-              Future(
-                httpEp
-                  .matches(v1.path.replaceFirst("/", "").split("/"))
-                  .toRight[Result](BadRequest("left"))
-              )
-            )
+            pathParams <- getPathParams(httpEp, v1)
             metadata = getMetadata(pathParams, v1)
-            _ = println(request.body)
-            input <- EitherT(
-              Future(inputMetadataDecoder.total match {
-                case Some(value) => value.decode(metadata)
-                case None =>
-                  for {
-                    metadataPartial <- inputMetadataDecoder.decode(metadata)
-                    codec = codecs.compileCodec(inputSchema)
-                    c <- codecs
-                      .decodeFromByteArrayPartial(
-                        codec,
-                        Json.toBytes(request.body.asJson.get)
-                      )
-                      .leftMap(e => {
-                        println(e)
-                        BadRequest(e.toString())
-                      })
-                  } yield metadataPartial.combine(c)
-              })
-            ).leftMap(e => BadRequest("Invalid Input Data"))
-
-            //res <- (impl(endpoint.wrap(request.body)): F[O]).leftMap(_ =>
-            res <- (impl(endpoint.wrap(input)): F[O]).leftMap(_ =>
-              BadRequest("Invalid Input Data")
+            input <- getInput(metadata, request)
+            res <- (impl(endpoint.wrap(input)): F[O]).leftMap(e =>
+              Results.Status(e.statusCode)(e.message)
             )
-          } yield Ok(Json.toJson(res._1)(res._2))
-          result.value.map {
-            case Left(value)  => value
-            case Right(value) => value
-          }
+          } yield Results.Status(httpEp.code)(Json.toJson(res._1)(res._2))
+          result.value.map(_.merge)
         }
       })
       .getOrElse(Action { NotFound("404") })
   }
+
+  def getPathParams(httpEndpoint: HttpEndpoint[I], header: RequestHeader) = EitherT(
+    Future(
+      httpEndpoint
+        .matches(header.path.replaceFirst("/", "").split("/"))
+        .toRight[Result](BadRequest("left"))
+    )
+  )
+
+  def getInput(metadata: Metadata, request: Request[AnyContent]): EitherT[Future, Result, I] = EitherT(
+    Future(inputMetadataDecoder.total match {
+      case Some(value) => value.decode(metadata)
+      case None =>
+        for {
+          metadataPartial <- inputMetadataDecoder.decode(metadata)
+          codec = codecs.compileCodec(inputSchema)
+          c <- codecs
+            .decodeFromByteArrayPartial(
+              codec,
+              Json.toBytes(request.body.asJson.get)
+            )
+            .leftMap(e => {
+              println(e)
+              BadRequest(e.toString())
+            })
+        } yield metadataPartial.combine(c)
+    })
+  ).leftMap(e => BadRequest("Invalid Input Data"))
 
 
   private def getMetadata(pathParams: PathParams, request: RequestHeader) =
