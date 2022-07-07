@@ -1,11 +1,13 @@
 package controllers
 
-import play.api.libs.json.Json
+import play.api.libs.json.{JsObject, Json}
 import play.api.mvc.{AbstractController, ControllerComponents}
 import play4s.MyMonads.{MyEndpoint, MyMonad}
 import playSmithy._
-import smithy4s.Timestamp
+import smithy4s.{ByteArray, Document, Timestamp}
 
+import java.io.{BufferedOutputStream, File, FileOutputStream}
+import java.nio.file.{Files, Path}
 import java.time.LocalDateTime
 import java.util.UUID
 import javax.inject.{Inject, Singleton}
@@ -19,16 +21,10 @@ class PizzaController @Inject(
 
   val endpoint = MyEndpoint()
 
-  implicit val format = Json.format[Pizza]
-  implicit val formatMenuItem = Json.format[MenuItem]
-  implicit val formatMenuResult = Json.format[GetMenuResult]
-  implicit val formatVersionOutput = Json.format[VersionOutput]
-  implicit val formatHealthResponse = Json.format[HealthResponse]
 
   var pizzaList = Seq.empty[MenuItem]
 
-  override def version(): MyMonad[VersionOutput] =
-    endpoint.outF(VersionOutput("1.0"))
+
 
   override def health(query: Option[String]): MyMonad[HealthResponse] =
     endpoint.outF(HealthResponse("I'm alive"))
@@ -52,4 +48,13 @@ class PizzaController @Inject(
         GetMenuResult(pizzaList.filter(m => m.id.get == id).head)
       }
     )
+
+  override def version(body: ByteArray): MyMonad[VersionOutput] = {
+    val bos: BufferedOutputStream = new BufferedOutputStream(new FileOutputStream(s"/tmp/${UUID.randomUUID().toString}"))
+    bos.write(body.array)
+    bos.close()
+    endpoint.outF(VersionOutput(Document.obj(
+      "test" -> Document.fromString("test")
+    )))
+  }
 }
