@@ -12,5 +12,6 @@ package object playSmithy {
     val id: smithy4s.ShapeId = service.id
   }
 
+  type PizzaList = playSmithy.PizzaList.Type
 
 }

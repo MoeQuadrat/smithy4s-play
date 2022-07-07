@@ -1,6 +1,7 @@
 package playSmithy
 
 import PizzaAdminServiceGen.AddMenuItemError
+import PizzaAdminServiceGen.GetAllError
 import PizzaAdminServiceGen.GetMenuError
 import PizzaAdminServiceGen.HealthError
 import PizzaAdminServiceGen.VersionError
@@ -14,6 +15,7 @@ trait PizzaAdminServiceGen[F[_, _, _, _, _]] {
   def getMenu(id: String) : F[GetMenuRequest, GetMenuError, GetMenuResult, Nothing, Nothing]
   def version(body: ByteArray) : F[VersionInput, VersionError, VersionOutput, Nothing, Nothing]
   def health(query: Option[String] = None) : F[HealthRequest, HealthError, HealthResponse, Nothing, Nothing]
+  def getAll() : F[Unit, GetAllError, GetAllRequest, Nothing, Nothing]
 
   def transform[G[_, _, _, _, _]](transformation : smithy4s.Transformation[F, G]) : PizzaAdminServiceGen[G] = new Transformed(transformation)
   class Transformed[G[_, _, _, _, _]](transformation : smithy4s.Transformation[F, G]) extends PizzaAdminServiceGen[G] {
@@ -21,6 +23,7 @@ trait PizzaAdminServiceGen[F[_, _, _, _, _]] {
     def getMenu(id: String) = transformation[GetMenuRequest, GetMenuError, GetMenuResult, Nothing, Nothing](self.getMenu(id))
     def version(body: ByteArray) = transformation[VersionInput, VersionError, VersionOutput, Nothing, Nothing](self.version(body))
     def health(query: Option[String] = None) = transformation[HealthRequest, HealthError, HealthResponse, Nothing, Nothing](self.health(query))
+    def getAll() = transformation[Unit, GetAllError, GetAllRequest, Nothing, Nothing](self.getAll())
   }
 }
 
@@ -39,6 +42,7 @@ object PizzaAdminServiceGen extends smithy4s.Service[PizzaAdminServiceGen, Pizza
     GetMenu,
     Version,
     Health,
+    GetAll,
   )
 
   val version: String = "1.0.0"
@@ -48,6 +52,7 @@ object PizzaAdminServiceGen extends smithy4s.Service[PizzaAdminServiceGen, Pizza
     case GetMenu(input) => (input, GetMenu)
     case Version(input) => (input, Version)
     case Health(input) => (input, Health)
+    case GetAll() => ((), GetAll)
   }
 
   object reified extends PizzaAdminServiceGen[PizzaAdminServiceOperation] {
@@ -55,6 +60,7 @@ object PizzaAdminServiceGen extends smithy4s.Service[PizzaAdminServiceGen, Pizza
     def getMenu(id: String) = GetMenu(GetMenuRequest(id))
     def version(body: ByteArray) = Version(VersionInput(body))
     def health(query: Option[String] = None) = Health(HealthRequest(query))
+    def getAll() = GetAll()
   }
 
   def transform[P[_, _, _, _, _]](transformation: smithy4s.Transformation[PizzaAdminServiceOperation, P]): PizzaAdminServiceGen[P] = reified.transform(transformation)
@@ -67,6 +73,7 @@ object PizzaAdminServiceGen extends smithy4s.Service[PizzaAdminServiceGen, Pizza
       case GetMenu(GetMenuRequest(id)) => impl.getMenu(id)
       case Version(VersionInput(body)) => impl.version(body)
       case Health(HealthRequest(query)) => impl.health(query)
+      case GetAll() => impl.getAll()
     }
   }
   case class AddMenuItem(input: AddMenuItemRequest) extends PizzaAdminServiceOperation[AddMenuItemRequest, AddMenuItemError, MenuItem, Nothing, Nothing]
@@ -314,6 +321,58 @@ object PizzaAdminServiceGen extends smithy4s.Service[PizzaAdminServiceGen, Pizza
       case c : GenericServerErrorCase => GenericServerErrorCase.alt(c)
       case c : GenericClientErrorCase => GenericClientErrorCase.alt(c)
       case c : UnknownServerErrorCase => UnknownServerErrorCase.alt(c)
+    }
+  }
+  case class GetAll() extends PizzaAdminServiceOperation[Unit, GetAllError, GetAllRequest, Nothing, Nothing]
+  object GetAll extends smithy4s.Endpoint[PizzaAdminServiceOperation, Unit, GetAllError, GetAllRequest, Nothing, Nothing] with smithy4s.Errorable[GetAllError] {
+    val id: smithy4s.ShapeId = smithy4s.ShapeId("playSmithy", "GetAll")
+    val input: smithy4s.Schema[Unit] = unit.addHints(smithy4s.internals.InputOutput.Input)
+    val output: smithy4s.Schema[GetAllRequest] = GetAllRequest.schema.addHints(smithy4s.internals.InputOutput.Output)
+    val streamedInput : smithy4s.StreamingSchema[Nothing] = smithy4s.StreamingSchema.nothing
+    val streamedOutput : smithy4s.StreamingSchema[Nothing] = smithy4s.StreamingSchema.nothing
+    val hints : smithy4s.Hints = smithy4s.Hints(
+      smithy.api.Http(smithy.api.NonEmptyString("GET"), smithy.api.NonEmptyString("/item"), Some(200)),
+      smithy.api.Readonly(),
+    )
+    def wrap(input: Unit) = GetAll()
+    override val errorable: Option[smithy4s.Errorable[GetAllError]] = Some(this)
+    val error: smithy4s.UnionSchema[GetAllError] = GetAllError.schema
+    def liftError(throwable: Throwable) : Option[GetAllError] = throwable match {
+      case e: GenericServerError => Some(GetAllError.GenericServerErrorCase(e))
+      case e: GenericClientError => Some(GetAllError.GenericClientErrorCase(e))
+      case _ => None
+    }
+    def unliftError(e: GetAllError) : Throwable = e match {
+      case GetAllError.GenericServerErrorCase(e) => e
+      case GetAllError.GenericClientErrorCase(e) => e
+    }
+  }
+  sealed trait GetAllError extends scala.Product with scala.Serializable
+  object GetAllError extends smithy4s.ShapeTag.Companion[GetAllError] {
+    val id: smithy4s.ShapeId = smithy4s.ShapeId("playSmithy", "GetAllError")
+
+    val hints : smithy4s.Hints = smithy4s.Hints.empty
+
+    case class GenericServerErrorCase(genericServerError: GenericServerError) extends GetAllError
+    case class GenericClientErrorCase(genericClientError: GenericClientError) extends GetAllError
+
+    object GenericServerErrorCase {
+      val hints : smithy4s.Hints = smithy4s.Hints.empty
+      val schema: smithy4s.Schema[GenericServerErrorCase] = bijection(GenericServerError.schema.addHints(hints), GenericServerErrorCase(_), _.genericServerError)
+      val alt = schema.oneOf[GetAllError]("GenericServerError")
+    }
+    object GenericClientErrorCase {
+      val hints : smithy4s.Hints = smithy4s.Hints.empty
+      val schema: smithy4s.Schema[GenericClientErrorCase] = bijection(GenericClientError.schema.addHints(hints), GenericClientErrorCase(_), _.genericClientError)
+      val alt = schema.oneOf[GetAllError]("GenericClientError")
+    }
+
+    implicit val schema: smithy4s.UnionSchema[GetAllError] = union(
+      GenericServerErrorCase.alt,
+      GenericClientErrorCase.alt,
+    ){
+      case c : GenericServerErrorCase => GenericServerErrorCase.alt(c)
+      case c : GenericClientErrorCase => GenericClientErrorCase.alt(c)
     }
   }
 }

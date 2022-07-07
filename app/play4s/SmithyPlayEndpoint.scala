@@ -11,24 +11,6 @@ import play4s.MyMonads.MyMonad
 
 import scala.concurrent.{ExecutionContext, Future}
 
-object SmithyPlayEndpoint {
-
-  def apply[F[_] <: MyMonad[_], Op[_, _, _, _, _], I, E, O, SI, SO](
-      impl: Interpreter[Op, F],
-      endpoint: Endpoint[Op, I, E, O, SI, SO],
-      codecs: CodecAPI
-  )(implicit
-      cc: ControllerComponents,
-      ec: ExecutionContext
-  ) = {
-    new SmithyPlayEndpoint[F, Op, I, E, O, SI, SO](
-      impl,
-      endpoint,
-      codecs
-    )
-  }
-
-}
 
 class SmithyPlayEndpoint[F[_] <: MyMonad[_], Op[
     _,
