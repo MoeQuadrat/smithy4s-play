@@ -18,16 +18,22 @@ operation AddMenuItem {
 
 
 @readonly
-@http(method: "GET", uri: "/version", code: 200)
+@http(method: "POST", uri: "/version", code: 200)
 operation Version {
+    input: VersionInput,
     output: VersionOutput
 }
 
+structure VersionInput {
+    @httpPayload
+    @required
+    body: Blob
+}
 
 structure VersionOutput {
     @httpPayload
     @required
-    version: String
+    version: Document
 }
 
 @error("client")

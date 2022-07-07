@@ -4,6 +4,7 @@ import PizzaAdminServiceGen.AddMenuItemError
 import PizzaAdminServiceGen.GetMenuError
 import PizzaAdminServiceGen.HealthError
 import PizzaAdminServiceGen.VersionError
+import smithy4s.ByteArray
 import smithy4s.schema.Schema._
 
 trait PizzaAdminServiceGen[F[_, _, _, _, _]] {
@@ -11,14 +12,14 @@ trait PizzaAdminServiceGen[F[_, _, _, _, _]] {
 
   def addMenuItem(menuItem: MenuItem) : F[AddMenuItemRequest, AddMenuItemError, MenuItem, Nothing, Nothing]
   def getMenu(id: String) : F[GetMenuRequest, GetMenuError, GetMenuResult, Nothing, Nothing]
-  def version() : F[Unit, VersionError, VersionOutput, Nothing, Nothing]
+  def version(body: ByteArray) : F[VersionInput, VersionError, VersionOutput, Nothing, Nothing]
   def health(query: Option[String] = None) : F[HealthRequest, HealthError, HealthResponse, Nothing, Nothing]
 
   def transform[G[_, _, _, _, _]](transformation : smithy4s.Transformation[F, G]) : PizzaAdminServiceGen[G] = new Transformed(transformation)
   class Transformed[G[_, _, _, _, _]](transformation : smithy4s.Transformation[F, G]) extends PizzaAdminServiceGen[G] {
     def addMenuItem(menuItem: MenuItem) = transformation[AddMenuItemRequest, AddMenuItemError, MenuItem, Nothing, Nothing](self.addMenuItem(menuItem))
     def getMenu(id: String) = transformation[GetMenuRequest, GetMenuError, GetMenuResult, Nothing, Nothing](self.getMenu(id))
-    def version() = transformation[Unit, VersionError, VersionOutput, Nothing, Nothing](self.version())
+    def version(body: ByteArray) = transformation[VersionInput, VersionError, VersionOutput, Nothing, Nothing](self.version(body))
     def health(query: Option[String] = None) = transformation[HealthRequest, HealthError, HealthResponse, Nothing, Nothing](self.health(query))
   }
 }
@@ -45,14 +46,14 @@ object PizzaAdminServiceGen extends smithy4s.Service[PizzaAdminServiceGen, Pizza
   def endpoint[I, E, O, SI, SO](op : PizzaAdminServiceOperation[I, E, O, SI, SO]) = op match {
     case AddMenuItem(input) => (input, AddMenuItem)
     case GetMenu(input) => (input, GetMenu)
-    case Version() => ((), Version)
+    case Version(input) => (input, Version)
     case Health(input) => (input, Health)
   }
 
   object reified extends PizzaAdminServiceGen[PizzaAdminServiceOperation] {
     def addMenuItem(menuItem: MenuItem) = AddMenuItem(AddMenuItemRequest(menuItem))
     def getMenu(id: String) = GetMenu(GetMenuRequest(id))
-    def version() = Version()
+    def version(body: ByteArray) = Version(VersionInput(body))
     def health(query: Option[String] = None) = Health(HealthRequest(query))
   }
 
@@ -64,7 +65,7 @@ object PizzaAdminServiceGen extends smithy4s.Service[PizzaAdminServiceGen, Pizza
     def apply[I, E, O, SI, SO](op : PizzaAdminServiceOperation[I, E, O, SI, SO]) : P[I, E, O, SI, SO] = op match  {
       case AddMenuItem(AddMenuItemRequest(menuItem)) => impl.addMenuItem(menuItem)
       case GetMenu(GetMenuRequest(id)) => impl.getMenu(id)
-      case Version() => impl.version()
+      case Version(VersionInput(body)) => impl.version(body)
       case Health(HealthRequest(query)) => impl.health(query)
     }
   }
@@ -201,18 +202,18 @@ object PizzaAdminServiceGen extends smithy4s.Service[PizzaAdminServiceGen, Pizza
       case c : FallbackErrorCase => FallbackErrorCase.alt(c)
     }
   }
-  case class Version() extends PizzaAdminServiceOperation[Unit, VersionError, VersionOutput, Nothing, Nothing]
-  object Version extends smithy4s.Endpoint[PizzaAdminServiceOperation, Unit, VersionError, VersionOutput, Nothing, Nothing] with smithy4s.Errorable[VersionError] {
+  case class Version(input: VersionInput) extends PizzaAdminServiceOperation[VersionInput, VersionError, VersionOutput, Nothing, Nothing]
+  object Version extends smithy4s.Endpoint[PizzaAdminServiceOperation, VersionInput, VersionError, VersionOutput, Nothing, Nothing] with smithy4s.Errorable[VersionError] {
     val id: smithy4s.ShapeId = smithy4s.ShapeId("playSmithy", "Version")
-    val input: smithy4s.Schema[Unit] = unit.addHints(smithy4s.internals.InputOutput.Input)
+    val input: smithy4s.Schema[VersionInput] = VersionInput.schema.addHints(smithy4s.internals.InputOutput.Input)
     val output: smithy4s.Schema[VersionOutput] = VersionOutput.schema.addHints(smithy4s.internals.InputOutput.Output)
     val streamedInput : smithy4s.StreamingSchema[Nothing] = smithy4s.StreamingSchema.nothing
     val streamedOutput : smithy4s.StreamingSchema[Nothing] = smithy4s.StreamingSchema.nothing
     val hints : smithy4s.Hints = smithy4s.Hints(
-      smithy.api.Http(smithy.api.NonEmptyString("GET"), smithy.api.NonEmptyString("/version"), Some(200)),
+      smithy.api.Http(smithy.api.NonEmptyString("POST"), smithy.api.NonEmptyString("/version"), Some(200)),
       smithy.api.Readonly(),
     )
-    def wrap(input: Unit) = Version()
+    def wrap(input: VersionInput) = Version(input)
     override val errorable: Option[smithy4s.Errorable[VersionError]] = Some(this)
     val error: smithy4s.UnionSchema[VersionError] = VersionError.schema
     def liftError(throwable: Throwable) : Option[VersionError] = throwable match {

@@ -1,7 +1,7 @@
 package play4s
 
 import cats.data.EitherT
-import play.api.mvc.{AbstractController, AnyContent, ControllerComponents, Handler, Request, RequestHeader, Result, Results}
+import play.api.mvc.{AbstractController, AnyContent, ControllerComponents, Handler, RawBuffer, Request, RequestHeader, Result, Results}
 import smithy4s.{Endpoint, Interpreter}
 import smithy4s.http.{CodecAPI, HttpEndpoint, Metadata, PathParams}
 import smithy4s.schema.Schema
@@ -57,19 +57,19 @@ class SmithyPlayEndpoint[F[_] <: MyMonad[_], Op[
     HttpEndpoint
       .cast(endpoint)
       .map(httpEp => {
-        Action.async { implicit request =>
+        Action.async(parse.raw) { implicit request =>
           val result: EitherT[Future, MyErrorType, O] = for {
             pathParams <- getPathParams(v1, httpEp)
             metadata = getMetadata(pathParams, v1)
             input <- getInput(request, metadata)
             //res <- (impl(endpoint.wrap(request.body)): F[O]).leftMap(_ =>
-            res <- (impl(endpoint.wrap(input)): F[O]).map {
-              case o: O => o
+            res <- (impl(endpoint.wrap(input)): F[O]).map { case o: O =>
+              o
             }
           } yield res
           result.value.map {
             case Left(value)  => Results.Status(value.statusCode)(value.message)
-            case Right(value) => Ok(value)
+            case Right(value) => handleSuccess(value, httpEp.code)
           }
         }
       })
@@ -81,12 +81,12 @@ class SmithyPlayEndpoint[F[_] <: MyMonad[_], Op[
       Future(
         httpEp
           .matches(v1.path.replaceFirst("/", "").split("/"))
-          .toRight[MyErrorType](play4s.BadRequest("left"))
+          .toRight[MyErrorType](play4s.BadRequest("left1"))
       )
     )
   }
 
-  private def getInput(request: Request[AnyContent], metadata: Metadata) = {
+  private def getInput(request: Request[RawBuffer], metadata: Metadata) = {
     EitherT(
       Future(inputMetadataDecoder.total match {
         case Some(value) => value.decode(metadata)
@@ -95,17 +95,18 @@ class SmithyPlayEndpoint[F[_] <: MyMonad[_], Op[
             metadataPartial <- inputMetadataDecoder.decode(metadata)
             codec = codecs.compileCodec(inputSchema)
             c <- codecs
-              .decodeFromByteArrayPartial(
+              .decodeFromByteBufferPartial(
                 codec,
-                Json.toBytes(request.body.asJson.get)
+                request.body.asBytes().get.toByteBuffer
               )
               .leftMap(e => {
+                println(e.expected)
                 println(e)
-                play4s.BadRequest("left")
+                play4s.BadRequest("left3")
               })
           } yield metadataPartial.combine(c)
       })
-    ).leftMap[MyErrorType](e => play4s.BadRequest("left"))
+    ).leftMap[MyErrorType](e => play4s.BadRequest("left2"))
   }
 
   private def getMetadata(pathParams: PathParams, request: RequestHeader) =
@@ -116,12 +117,22 @@ class SmithyPlayEndpoint[F[_] <: MyMonad[_], Op[
         .map { case (k, v) => (k.trim, v) }
     )
 
-  private def successResponse(output: O, httpEndpoint: HttpEndpoint[I]): Result = {
+  private def handleSuccess(output: O, code: Int) = {
     val outputMetadata = outputMetadataEncoder.encode(output)
-    val outputHeaders = outputMetadata.headers
-    val successCode = httpEndpoint.code
-    val codec = codecs.compileCodec(inputSchema)
-    Results.Status(successCode)(output)
+    //wat
+    val outputHeaders = outputMetadata.headers.map { case (k, v) =>
+      (k.toString, v.mkString(""))
+    }.toList
+    val result = Results.Status(code)
+    val codecA = codecs.compileCodec(outputSchema)
+    val expectBody = Metadata.PartialDecoder
+      .fromSchema(outputSchema)
+      .total
+      .isEmpty // expect body if metadata decoder is not total
+    if (expectBody) {
+      result(codecs.writeToArray(codecA, output)).withHeaders(outputHeaders: _*)
+    } else result("")
+
   }
 
 }

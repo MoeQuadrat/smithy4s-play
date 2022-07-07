@@ -33,7 +33,7 @@ object MyMonads {
       f
     }*/
 
-    def outF[O](value: O)(implicit format: Format[O]): MyMonad[O] = EitherT.right[MyErrorType] {
+    def outF[O](value: O): MyMonad[O] = EitherT.right[MyErrorType] {
       Future(value)
     }
 
