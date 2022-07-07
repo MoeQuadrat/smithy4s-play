@@ -61,7 +61,7 @@ class SmithyPlayRouter[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[
               .equals(v1.method)
           )
           .head
-        new SmithyPlayEndpoint(
+        SmithyPlayEndpoint(
           interpreter,
           ep,
           smithy4s.http.json.codecs(
