@@ -6,7 +6,7 @@ use smithy4s.api#simpleRestJson
 service PizzaAdminService {
     version: "1.0.0",
     errors: [GenericServerError, GenericClientError],
-    operations: [AddMenuItem, GetMenu, Version, Health]
+    operations: [AddMenuItem, GetMenu, Version, Health, GetAll]
 }
 
 @http(method: "POST", uri: "/menu/item", code: 201)
@@ -15,6 +15,7 @@ operation AddMenuItem {
     errors: [PriceError],
     output: MenuItem
 }
+
 
 
 @readonly
@@ -40,6 +41,22 @@ structure VersionOutput {
 structure PriceError {
     @required
     message: String
+}
+
+@readonly
+@http(method: "GET", uri: "/item", code: 200)
+operation GetAll {
+    output: GetAllRequest
+}
+
+structure GetAllRequest {
+    @required
+    @httpPayload
+    items: PizzaList
+}
+
+list PizzaList {
+    member: MenuItem
 }
 
 @readonly

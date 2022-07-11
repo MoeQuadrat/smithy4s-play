@@ -1,7 +1,9 @@
 package controllers
 
+import cats.data.{EitherT, Validated}
 import play.api.libs.json.{JsObject, Json}
 import play.api.mvc.{AbstractController, ControllerComponents}
+import play4s.MyErrorType
 import play4s.MyMonads.{MyEndpoint, MyMonad}
 import playSmithy._
 import smithy4s.{ByteArray, Document, Timestamp}
@@ -11,13 +13,12 @@ import java.nio.file.{Files, Path}
 import java.time.LocalDateTime
 import java.util.UUID
 import javax.inject.{Inject, Singleton}
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class PizzaController @Inject(
 ) (implicit cc: ControllerComponents, ec: ExecutionContext)
-    extends AbstractController(cc)
-    with PizzaAdminService[MyMonad] {
+    extends PizzaAdminService[MyMonad] {
 
   val endpoint = MyEndpoint()
 
@@ -41,13 +42,14 @@ class PizzaController @Inject(
   }
 
   override def getMenu(id: String): MyMonad[GetMenuResult] =
-    endpoint.outF(
-      {
-        println(pizzaList)
-        println(id)
-        GetMenuResult(pizzaList.filter(m => m.id.get == id).head)
-      }
-    )
+    for {
+      _ <- EitherT(
+        Future(
+          Validated.cond(pizzaList.exists(p => p.id.get == id), (), play4s.BadRequest("No Pizza with this ID")).toEither
+        )
+      )
+      pizza <- EitherT.right[MyErrorType](Future(pizzaList.find(p => p.id.get == id).get))
+    } yield GetMenuResult(pizza)
 
   override def version(body: ByteArray): MyMonad[VersionOutput] = {
     val bos: BufferedOutputStream = new BufferedOutputStream(new FileOutputStream(s"/tmp/${UUID.randomUUID().toString}"))
@@ -57,4 +59,6 @@ class PizzaController @Inject(
       "test" -> Document.fromString("test")
     )))
   }
+
+  override def getAll(): MyMonad[GetAllRequest] = endpoint.outF(GetAllRequest(pizzaList.toList))
 }
