@@ -1,16 +1,33 @@
 package play4s
 
 import cats.data.EitherT
-import play.api.mvc.{AbstractController, AnyContent, ControllerComponents, Handler, RawBuffer, Request, RequestHeader, Result, Results}
-import smithy4s.{Endpoint, Interpreter}
-import smithy4s.http.{CodecAPI, HttpEndpoint, Metadata, PathParams}
+import play.api.mvc.{
+  AbstractController,
+  AnyContent,
+  ControllerComponents,
+  Handler,
+  RawBuffer,
+  Request,
+  RequestHeader,
+  Result,
+  Results
+}
+import smithy4s.{ByteArray, Endpoint, Interpreter}
+import smithy4s.http.{
+  CodecAPI,
+  HttpEndpoint,
+  Metadata,
+  MetadataPartial,
+  PathParams
+}
 import smithy4s.schema.Schema
 import cats.implicits._
 import play.api.libs.json.{JsValue, Json}
 import play4s.MyMonads.MyMonad
+import playSmithy.{VersionInput, VersionOutput}
+import smithy4s.http.CodecAPI.nativeStringsAndBlob
 
 import scala.concurrent.{ExecutionContext, Future}
-
 
 class SmithyPlayEndpoint[F[_] <: MyMonad[_], Op[
     _,
@@ -68,27 +85,58 @@ class SmithyPlayEndpoint[F[_] <: MyMonad[_], Op[
     )
   }
 
-  private def getInput(request: Request[RawBuffer], metadata: Metadata) = {
+  private def getInput(
+      request: Request[RawBuffer],
+      metadata: Metadata
+  ): EitherT[Future, MyErrorType, I] = {
     EitherT(
       Future(inputMetadataDecoder.total match {
-        case Some(value) => value.decode(metadata)
+        case Some(value) =>
+          value.decode(metadata).leftMap(e => play4s.BadRequest(e.getMessage()))
         case None =>
-          for {
-            metadataPartial <- inputMetadataDecoder.decode(metadata)
-            codec = codecs.compileCodec(inputSchema)
-            c <- codecs
-              .decodeFromByteBufferPartial(
-                codec,
-                request.body.asBytes().get.toByteBuffer
-              )
-              .leftMap(e => {
-                println(e.expected)
-                println(e)
-                play4s.BadRequest("left3")
-              })
-          } yield metadataPartial.combine(c)
+          request.contentType.get match {
+            case "application/json" => parseJson(request, metadata)
+            case _           => parseRaw(request, metadata)
+          }
+
       })
-    ).leftMap[MyErrorType](e => play4s.BadRequest("left2"))
+    )
+  }
+
+  private def parseJson(request: Request[RawBuffer], metadata: Metadata) = {
+    for {
+      metadataPartial <- inputMetadataDecoder
+        .decode(metadata)
+        .leftMap(e => {
+          play4s.BadRequest(e.getMessage())
+        })
+      codec = codecs.compileCodec(inputSchema)
+      c <- codecs
+        .decodeFromByteBufferPartial(
+          codec,
+          request.body.asBytes().get.toByteBuffer
+        )
+        .leftMap(e => {
+          play4s.BadRequest(e.message)
+        })
+    } yield metadataPartial.combine(c)
+  }
+
+  private def parseRaw(request: Request[RawBuffer], metadata: Metadata) = {
+    val nativeCodec: CodecAPI = CodecAPI.nativeStringsAndBlob(codecs)
+    val input = ByteArray(request.body.asBytes().get.toArray)
+    val codec = nativeCodec
+      .compileCodec(inputSchema)
+    for {
+      metadataPartial <- inputMetadataDecoder
+        .decode(metadata)
+        .leftMap(e => {
+          play4s.BadRequest(e.getMessage())
+        })
+      bodyPartial <- nativeCodec
+        .decodeFromByteArrayPartial(codec, input.array)
+        .leftMap(e => play4s.BadRequest(e.getMessage()))
+    } yield metadataPartial.combine(bodyPartial)
   }
 
   private def getMetadata(pathParams: PathParams, request: RequestHeader) =
@@ -101,19 +149,18 @@ class SmithyPlayEndpoint[F[_] <: MyMonad[_], Op[
 
   private def handleSuccess(output: O, code: Int) = {
     val outputMetadata = outputMetadataEncoder.encode(output)
-    //wat
     val outputHeaders = outputMetadata.headers.map { case (k, v) =>
       (k.toString, v.mkString(""))
     }.toList
-    val result = Results.Status(code)
+    val status = Results.Status(code)
     val codecA = codecs.compileCodec(outputSchema)
     val expectBody = Metadata.PartialDecoder
       .fromSchema(outputSchema)
       .total
       .isEmpty // expect body if metadata decoder is not total
     if (expectBody) {
-      result(codecs.writeToArray(codecA, output)).withHeaders(outputHeaders: _*)
-    } else result("")
+      status(codecs.writeToArray(codecA, output)).withHeaders(outputHeaders: _*)
+    } else status("")
 
   }
 
