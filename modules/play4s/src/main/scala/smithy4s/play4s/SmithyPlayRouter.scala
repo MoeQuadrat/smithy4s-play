@@ -10,13 +10,13 @@ import smithy4s.internals.InputOutput
 import scala.concurrent.ExecutionContext
 
 class SmithyPlayRouter[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[
-    _
+  _
 ] <: MyMonad[_]](
-    impl: Monadic[Alg, F],
-)(implicit cc: ControllerComponents, ec: ExecutionContext) {
+                  impl: Monadic[Alg, F],
+                )(implicit cc: ControllerComponents, ec: ExecutionContext) {
 
   def routes()(implicit
-      serviceProvider: smithy4s.Service.Provider[Alg, Op]
+               serviceProvider: smithy4s.Service.Provider[Alg, Op]
   ): Routes = {
     println("[SmithyPlayRouter]1")
 
